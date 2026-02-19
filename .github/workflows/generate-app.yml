@@ -67,14 +67,9 @@ jobs:
       - name: Debug
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         shell: bash
-        run: ls
+        run: ls -la
         
       - name: Debug2
-        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
-        shell: bash
-        run: ls "$GITHUB_WORKSPACE"
-        
-      - name: Debug3
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         shell: bash
         run: pwd
@@ -86,7 +81,8 @@ jobs:
       - name: Build apk
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         shell: bash
-        run: ./gradlew assembleRelease \
+        run: |
+          ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/signing-key.jks" \
             -Pandroid.injected.signing.store.password="${{ secrets.SIGNING_STORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.SIGNING_KEY_ALIAS }}" \
@@ -95,10 +91,10 @@ jobs:
       - name: Build app bundle (AAB)
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         run: ./gradlew ${{ env.main_project_module }}:bundleRelease \
-            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/signing-key.jks" \
-            -Pandroid.injected.signing.store.password="${{ secrets.SIGNING_STORE_PASSWORD }}" \
-            -Pandroid.injected.signing.key.alias="${{ secrets.SIGNING_KEY_ALIAS }}" \
-            -Pandroid.injected.signing.key.password="${{ secrets.SIGNING_KEY_PASSWORD }}"
+            -P android.injected.signing.store.file="$GITHUB_WORKSPACE/signing-key.jks" \
+            -P android.injected.signing.store.password="${{ secrets.SIGNING_STORE_PASSWORD }}" \
+            -P android.injected.signing.key.alias="${{ secrets.SIGNING_KEY_ALIAS }}" \
+            -P android.injected.signing.key.password="${{ secrets.SIGNING_KEY_PASSWORD }}"
   
       - name: Delete signing key file
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
