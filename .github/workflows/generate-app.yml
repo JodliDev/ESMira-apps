@@ -55,27 +55,39 @@ jobs:
           cache: 'gradle'
 
       - name: Change wrapper permissions
+        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         run: chmod +x ./gradlew
 
-      # Run Tests Build
-#      - name: Run gradle tests
-#        run: ./gradlew test
+      - name: Decode Keystore
+        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
+        run: |
+            echo ${{ secrets.KEYSTORE }} | base64 -di > "${GITHUB_WORKSPACE}"/signing-key.jks
 
-      # Run Build Project
       - name: Build gradle project
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         run: ./gradlew ${{ env.main_project_module }}:build -x lint 
-
-      # Create APK Release
-      - name: Build apk release project (APK) - ${{ env.main_project_module }} module
+  
+      - name: Delete signing key file
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
-        run: ./gradlew assemble
+        shell: bash
+        run: rm "$GITHUB_WORKSPACE/signing-key.jks"
 
-      # Create Bundle AAB Release
-      # Noted for main module build [main_project_module]:bundleRelease
-      - name: Build app bundle release (AAB) - ${{ env.main_project_module }} module
+      
+      - name: Build apk
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
-        run: ./gradlew ${{ env.main_project_module }}:bundleRelease
+        run: ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/signing-key.jks" \
+            -Pandroid.injected.signing.store.password="${{ secrets.SIGNING_STORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.SIGNING_KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.SIGNING_KEY_PASSWORD }}"
+
+      - name: Build app bundle (AAB)
+        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
+        run: ./gradlew ${{ env.main_project_module }}:bundleRelease \
+            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/signing-key.jks" \
+            -Pandroid.injected.signing.store.password="${{ secrets.SIGNING_STORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.SIGNING_KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.SIGNING_KEY_PASSWORD }}"
 
       # Create Release
       - name: Create named release
@@ -89,5 +101,21 @@ jobs:
           generate_release_notes: true
           append_body: true
           files: |
-            ${{ env.main_project_module }}/build/outputs/apk/release/
-            ${{ env.main_project_module }}/build/outputs/bundle/release/
+            ${{ env.main_project_module }}/build/outputs/apk/release/androidApp-release-unsigned.apk
+            ${{ env.main_project_module }}/build/outputs/bundle/release/androidApp-release.aab
+
+
+
+      - name: Upload APK Release
+        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
+        uses: actions/upload-artifact@v4
+        with:
+          name: APK(s) release generated
+          path: ${{ env.main_project_module }}/build/outputs/apk/release/
+
+      - name: Upload AAB (App Bundle) Release
+        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
+        uses: actions/upload-artifact@v4
+        with:
+          name: App bundle(s) AAB release generated
+          path: ${{ env.main_project_module }}/build/outputs/bundle/release/
