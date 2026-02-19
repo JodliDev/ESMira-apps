@@ -45,7 +45,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      
       - name: Set Up JDK
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         uses: actions/setup-java@v4
@@ -91,7 +90,6 @@ jobs:
         shell: bash
         run: rm "$GITHUB_WORKSPACE/signing-key.jks"
 
-      # Create Release
       - name: Create named release
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         uses: softprops/action-gh-release@v2
@@ -103,21 +101,5 @@ jobs:
           generate_release_notes: true
           append_body: true
           files: |
-            ${{ env.main_project_module }}/build/outputs/apk/release/androidApp-release-unsigned.apk
+            ${{ env.main_project_module }}/build/outputs/apk/release/androidApp-release.apk
             ${{ env.main_project_module }}/build/outputs/bundle/release/androidApp-release.aab
-
-
-
-      - name: Upload APK Release
-        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
-        uses: actions/upload-artifact@v4
-        with:
-          name: APK(s) release generated
-          path: ${{ env.main_project_module }}/build/outputs/apk/release/
-
-      - name: Upload AAB (App Bundle) Release
-        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
-        uses: actions/upload-artifact@v4
-        with:
-          name: App bundle(s) AAB release generated
-          path: ${{ env.main_project_module }}/build/outputs/bundle/release/
