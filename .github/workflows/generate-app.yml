@@ -54,7 +54,6 @@ jobs:
           java-version: '17'
           cache: 'gradle'
       
-
       - name: Change wrapper permissions
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         run: chmod +x ./gradlew
@@ -63,16 +62,6 @@ jobs:
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         shell: bash
         run: echo "${{ secrets.KEYSTORE }}" | base64 -d > "$GITHUB_WORKSPACE/signing-key.jks"
-
-      - name: Debug
-        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
-        shell: bash
-        run: ls -la
-        
-      - name: Debug2
-        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
-        shell: bash
-        run: pwd
         
       - name: Build gradle project
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
@@ -90,11 +79,12 @@ jobs:
 
       - name: Build app bundle (AAB)
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
-        run: ./gradlew ${{ env.main_project_module }}:bundleRelease \
-            -P android.injected.signing.store.file="$GITHUB_WORKSPACE/signing-key.jks" \
-            -P android.injected.signing.store.password='${{ secrets.SIGNING_STORE_PASSWORD }}' \
-            -P android.injected.signing.key.alias='${{ secrets.SIGNING_KEY_ALIAS }}' \
-            -P android.injected.signing.key.password='${{ secrets.SIGNING_KEY_PASSWORD }}'
+        run: |
+          ./gradlew ${{ env.main_project_module }}:bundleRelease \
+            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/signing-key.jks" \
+            -Pandroid.injected.signing.store.password='${{ secrets.SIGNING_STORE_PASSWORD }}' \
+            -Pandroid.injected.signing.key.alias='${{ secrets.SIGNING_KEY_ALIAS }}' \
+            -Pandroid.injected.signing.key.password='${{ secrets.SIGNING_KEY_PASSWORD }}'
   
       - name: Delete signing key file
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
