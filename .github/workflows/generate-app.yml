@@ -23,15 +23,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Set Current Date As Env Variable
-      - name: Set current date as env variable
-        run: echo "date_today=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+      - name: Get Android version
+        id: androidApp
+        uses: ltDino/android-get-version-action@v1.0
+        with:
+          gradlePath: androidApp/build.gradle.kts 
+      
+      - name: Check if release exists
+        id: check-release-exists
+        shell: bash
+        run: |
+          priorRelease=$(gh release list --limit 1 --json tagName --jq .[0].tagName)
+          echo "Prior release: $priorRelease"
+          if [[ "$priorRelease" == "v${{steps.androidApp.outputs.versionName}}" ]]; then
+            echo "Release 'v${{steps.androidApp.outputs.versionName}}' already exists."
+            echo "ReleaseExists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Release 'v${{steps.androidApp.outputs.versionName}}' not found."
+            echo "ReleaseExists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Set Repository Name As Env Variable
-      - name: Set repository name as env variable
-        run: echo "repository_name=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
-
+      
       - name: Set Up JDK
+        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu' # See 'Supported distributions' for available options
@@ -47,39 +63,31 @@ jobs:
 
       # Run Build Project
       - name: Build gradle project
+        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         run: ./gradlew ${{ env.main_project_module }}:build -x lint 
-
-      # Create APK Debug
-      - name: Build apk debug project (APK) - ${{ env.main_project_module }} module
-        run: ./gradlew assembleDebug
 
       # Create APK Release
       - name: Build apk release project (APK) - ${{ env.main_project_module }} module
+        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         run: ./gradlew assemble
 
       # Create Bundle AAB Release
       # Noted for main module build [main_project_module]:bundleRelease
       - name: Build app bundle release (AAB) - ${{ env.main_project_module }} module
+        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         run: ./gradlew ${{ env.main_project_module }}:bundleRelease
 
-      # Upload Artifact Build
-      # Noted For Output [main_project_module]/build/outputs/apk/debug/
-      - name: Upload APK Debug - ${{ env.repository_name }}
-        uses: actions/upload-artifact@v4
+      # Create Release
+      - name: Create named release
+        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK(s) debug generated
-          path: ${{ env.main_project_module }}/build/outputs/apk/debug/
-
-      # Noted For Output [main_project_module]/build/outputs/apk/release/
-      - name: Upload APK Release - ${{ env.repository_name }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK(s) release generated
-          path: ${{ env.main_project_module }}/build/outputs/apk/release/
-
-      # Noted For Output [main_project_module]/build/outputs/bundle/release/
-      - name: Upload AAB (App Bundle) Release - ${{ env.repository_name }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - App bundle(s) AAB release generated
-          path: ${{ env.main_project_module }}/build/outputs/bundle/release/
+          name: Release version ${{steps.androidApp.outputs.versionName}}
+          tag_name: v${{steps.androidApp.outputs.versionName}}
+          generate_release_notes: true
+          append_body: true
+          files: |
+            ${{ env.main_project_module }}/build/outputs/apk/release/
+            ${{ env.main_project_module }}/build/outputs/bundle/release/
