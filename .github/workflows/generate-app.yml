@@ -66,12 +66,6 @@ jobs:
       - name: Build gradle project
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         run: ./gradlew ${{ env.main_project_module }}:build -x lint 
-  
-      - name: Delete signing key file
-        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
-        shell: bash
-        run: rm "$GITHUB_WORKSPACE/signing-key.jks"
-
       
       - name: Build apk
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
@@ -88,6 +82,11 @@ jobs:
             -Pandroid.injected.signing.store.password="${{ secrets.SIGNING_STORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.SIGNING_KEY_ALIAS }}" \
             -Pandroid.injected.signing.key.password="${{ secrets.SIGNING_KEY_PASSWORD }}"
+  
+      - name: Delete signing key file
+        if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
+        shell: bash
+        run: rm "$GITHUB_WORKSPACE/signing-key.jks"
 
       # Create Release
       - name: Create named release
