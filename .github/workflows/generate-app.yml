@@ -61,7 +61,7 @@ jobs:
       - name: Decode Keystore
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
         run: |
-            echo ${{ secrets.KEYSTORE }} | base64 -di > "${GITHUB_WORKSPACE}"/signing-key.jks
+            echo ${{ secrets.KEYSTORE }} | base64 -di > "$GITHUB_WORKSPACE"/signing-key.jks
 
       - name: Build gradle project
         if: ${{steps.check-release-exists.outputs.ReleaseExists == 'false'}}
